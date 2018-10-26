@@ -1,13 +1,31 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { Suspense, Component } from "react";
+import logo from "./logo.svg";
+import "./App.css";
+import { unstable_createResource as createResource } from "react-cache";
 
-class App extends Component {
-  render() {
-    return (
+import * as thing from "react-cache";
+
+console.log(Suspense);
+
+// const cache = createCache();
+const ImageResource = createResource(
+  src =>
+    new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.src = src;
+    })
+);
+const Img = ({ src, ...rest }) => (
+  <img src={ImageResource.read(src)} {...rest} />
+);
+
+function App() {
+  return (
+    <Suspense fallback="oh no">
       <div className="App">
         <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
+          <Img src={logo} className="App-logo" alt="logo" />
           <p>
             Edit <code>src/App.js</code> and save to reload.
           </p>
@@ -21,8 +39,8 @@ class App extends Component {
           </a>
         </header>
       </div>
-    );
-  }
+    </Suspense>
+  );
 }
 
 export default App;
