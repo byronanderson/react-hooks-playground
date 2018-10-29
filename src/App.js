@@ -1,13 +1,8 @@
-import React, { Suspense, Component, useState } from "react";
+import React, { Suspense, Component, useState, useEffect } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import { unstable_createResource as createResource } from "react-cache";
 
-import * as thing from "react-cache";
-
-console.log(Suspense);
-
-// const cache = createCache();
 const ImageResource = createResource(
   src =>
     new Promise(resolve => {
@@ -16,6 +11,7 @@ const ImageResource = createResource(
       img.src = src;
     })
 );
+
 const Img = ({ src, ...rest }) => (
   <img src={ImageResource.read(src)} {...rest} />
 );
@@ -28,6 +24,32 @@ function useFormState(initial) {
       setState(e.target.value);
     }
   ];
+}
+
+function useDebounce(fn, attrs, timeout) {
+  useEffect(() => {
+    const timeoutId = setTimeout(fn, timeout);
+    return () => clearTimeout(timeoutId);
+  }, attrs);
+}
+
+function AnimeApp() {
+  const [data, setData] = useState(null);
+  const [name, setName] = useFormState("Pikachu");
+
+  function fetchAnime() {
+    fetch(`https://kitsu.io/api/edge/anime?filter[text]=${name}`)
+      .then(resp => resp.json())
+      .then(body => setData(body.data.map(anime => anime.attributes.slug)));
+  }
+  useDebounce(fetchAnime, [name], 2000);
+  return (
+    <div>
+      <input value={name} onChange={setName} />
+      <br />
+      {JSON.stringify(data)}
+    </div>
+  );
 }
 
 function App() {
@@ -51,8 +73,7 @@ function App() {
           </a>
         </header>
         <div>
-          <input value={name} onChange={setName} />
-          <input value={surname} onChange={setSurname} />
+          <AnimeApp />
         </div>
       </div>
     </Suspense>
