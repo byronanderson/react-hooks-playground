@@ -1,4 +1,4 @@
-import React, { Suspense, Component } from "react";
+import React, { Suspense, Component, useState } from "react";
 import logo from "./logo.svg";
 import "./App.css";
 import { unstable_createResource as createResource } from "react-cache";
@@ -20,7 +20,18 @@ const Img = ({ src, ...rest }) => (
   <img src={ImageResource.read(src)} {...rest} />
 );
 
+function useFormState(initial) {
+  const [state, setState] = useState(initial);
+  return [
+    state,
+    function(e) {
+      setState(e.target.value);
+    }
+  ];
+}
+
 function App() {
+  const [state, setState] = useState("Foo");
   return (
     <Suspense fallback="oh no">
       <div className="App">
@@ -38,6 +49,9 @@ function App() {
             Learn React
           </a>
         </header>
+        <div>
+          <input value={state} onChange={e => setState(e.target.value)} />
+        </div>
       </div>
     </Suspense>
   );
