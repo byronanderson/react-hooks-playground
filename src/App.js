@@ -31,7 +31,8 @@ function useFormState(initial) {
 }
 
 function App() {
-  const [state, setState] = useState("Foo");
+  const [name, setName] = useFormState("Byron");
+  const [surname, setSurname] = useFormState("Anderson");
   return (
     <Suspense fallback="oh no">
       <div className="App">
@@ -50,7 +51,8 @@ function App() {
           </a>
         </header>
         <div>
-          <input value={state} onChange={e => setState(e.target.value)} />
+          <input value={name} onChange={setName} />
+          <input value={surname} onChange={setSurname} />
         </div>
       </div>
     </Suspense>
