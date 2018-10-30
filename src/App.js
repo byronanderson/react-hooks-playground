@@ -129,7 +129,6 @@ function AnimatedChart({ data }) {
 function ChartApp() {
   const [data, setData] = useState([1, 5, 3]);
   function change() {
-    console.log("changing");
     if (data[0] === 1) {
       setData([5, 6, 2]);
     } else {
