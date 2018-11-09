@@ -39,6 +39,33 @@ function useDebounce(fn, attrs, timeout) {
   }, attrs);
 }
 
+function useAudio({ url, playing }) {
+  const [audio, setAudio] = useState(null);
+  useEffect(
+    () => {
+      var audio = new Audio(url);
+      let listener = () => setAudio(audio);
+      audio.addEventListener("canplaythrough", listener, false);
+      return () => {
+        audio.removeEventListener("canplaythrough", listener, false);
+        setAudio(null);
+      };
+    },
+    [url]
+  );
+
+  useEffect(
+    () => {
+      if (audio && playing) {
+        audio.play();
+      } else if (audio) {
+        audio.pause();
+      }
+    },
+    [audio, playing]
+  );
+}
+
 function useMedia(query) {
   const media = window.matchMedia(query);
   const [matches, setMatches] = useState(media.matches);
@@ -54,8 +81,24 @@ function useMedia(query) {
 }
 
 function App() {
-  const large = useMedia("(min-width: 400px)");
-  return <Suspense fallback="oh no">{large ? "large" : "small"}</Suspense>;
+  const [playing, setPlaying] = useState(false);
+  useAudio({
+    url: "https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg",
+    playing
+  });
+  return (
+    <div>
+      {playing ? (
+        <button type="button" onClick={() => setPlaying(false)}>
+          pause
+        </button>
+      ) : (
+        <button type="button" onClick={() => setPlaying(true)}>
+          play
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default App;
