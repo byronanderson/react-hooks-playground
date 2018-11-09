@@ -1,4 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
+import { unstable_createResource as createResource } from "react-cache";
+
+const mungeToPodcast = item => ({
+  title: item.getElementsByTagName("title")[0].innerHTML,
+  url: item.getElementsByTagName("media:content")[0].attributes.url.nodeValue
+});
+const PodcastResource = createResource(url =>
+  fetch(`https://cors.io/?${url}`)
+    .then(resp => resp.text())
+    .then(text => {
+      let parser = new DOMParser();
+      let xmlDoc = parser.parseFromString(text, "text/xml");
+      function toArray(nodelist) {
+        return Array.prototype.slice.call(nodelist);
+      }
+      return {
+        casts: toArray(xmlDoc.getElementsByTagName("item")).map(mungeToPodcast)
+      };
+    })
+    .catch(console.error.bind(console))
+);
 
 function mungeBuffered(buffered) {
   let retVal = [];
@@ -8,7 +29,7 @@ function mungeBuffered(buffered) {
   return retVal;
 }
 
-function useAudio(url) {
+function useAudio({ url, requestPlaying }) {
   const [audio, setAudio] = useState(null);
   const [state, setState] = useState({ volume: 1, canPlay: false });
 
@@ -18,7 +39,6 @@ function useAudio(url) {
       audio.volume = state.volume;
       setAudio(audio);
       function inspect(e) {
-        console.log(e.type)
         setState(state => ({
           ...state,
           playing: !audio.paused,
@@ -90,23 +110,22 @@ function useAudio(url) {
     }
   }
 
-  function play(time) {
-    if (state.canPlay) {
-      audio.play();
-    }
-  }
-
-  function pause(time) {
-    if (state.canPlay) {
-      audio.pause();
-    }
-  }
+  useEffect(
+    () => {
+      if (state.canPlay && requestPlaying) {
+        audio.play();
+      } else if (state.canPlay) {
+        audio.pause();
+      }
+    },
+    [audio, state.canPlay, requestPlaying]
+  );
 
   function setVolume(volume) {
     audio.volume = volume;
   }
 
-  return { state, seek, play, pause, setVolume };
+  return { state, seek, setVolume };
 }
 
 function MultiProgress({ spans, annotations, onClick }) {
@@ -134,10 +153,10 @@ function MultiProgress({ spans, annotations, onClick }) {
         <div
           key={i}
           onClick={e => {
-            onClick(
-              ((e.screenX - e.currentTarget.parentElement.offsetLeft) * total) /
-                300
-            );
+            const location =
+              ((e.pageX - e.currentTarget.parentElement.offsetLeft) * total) /
+              300;
+            onClick(location);
           }}
           style={{
             display: "inline-block",
@@ -150,11 +169,9 @@ function MultiProgress({ spans, annotations, onClick }) {
   );
 }
 
-function App() {
-  let { state, seek, play, pause, setVolume } = useAudio(
-    "http://feeds.soundcloud.com/stream/436552305-idlethumbs-idle-thumbs-ruination-april-2018.mp3"
-  );
-  let playing = state.playing;
+function AudioPlayer({ url }) {
+  let [requestPlaying, setRequestPlaying] = useState(false);
+  let { state, seek, setVolume } = useAudio({ url, requestPlaying });
   let spans = [];
   if (state.bufferedSegments) {
     for (let i = 0; i < state.bufferedSegments.length; i++) {
@@ -172,15 +189,14 @@ function App() {
       });
     }
   }
-
   return (
-    <div>
-      {playing ? (
-        <button type="button" onClick={pause}>
+    <>
+      {state.playing ? (
+        <button type="button" onClick={() => setRequestPlaying(false)}>
           pause
         </button>
       ) : (
-        <button type="button" onClick={play}>
+        <button type="button" onClick={() => setRequestPlaying(true)}>
           play
         </button>
       )}
@@ -190,7 +206,13 @@ function App() {
           annotations={[state.currentTime]}
           onClick={seek}
         />
-      ) : null}
+      ) : (
+        <MultiProgress
+          spans={[{ color: "gray", length: 1 }]}
+          annotations={[0]}
+          onClick={seek}
+        />
+      )}
       <input
         type="range"
         value={state.volume * 20}
@@ -198,9 +220,66 @@ function App() {
         min={0}
         max={20}
       />
-      <br />
-      {JSON.stringify(state)}
-    </div>
+    </>
+  );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    // You can also log the error to an error reporting service
+    console.log(error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // You can render any custom fallback UI
+      return <h1>Something went wrong.</h1>;
+    }
+
+    return this.props.children;
+  }
+}
+
+function Cast({ cast }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div key={cast.title} onClick={() => setOpen(!open)}>
+        {cast.title}
+      </div>
+      {open ? <AudioPlayer url={cast.url} /> : null}
+    </>
+  );
+}
+
+function Podcast({ url }) {
+  const podcast = PodcastResource.read(url);
+  return (
+    <>
+      {podcast.casts.map(cast => (
+        <Cast key={cast.title} cast={cast} />
+      ))}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback="loading...">
+        <Podcast url="https://www.idlethumbs.net/feeds/idle-thumbs" />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
