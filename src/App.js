@@ -1,6 +1,15 @@
 import React, { Suspense, useState, useEffect } from "react";
 import { unstable_createResource as createResource } from "react-cache";
-import { MdPlayArrow as PlayIcon, MdPause as PauseIcon } from "react-icons/md";
+import {
+  MdForward30 as SkipForward30Icon,
+  MdReplay10 as SkipBackward10Icon,
+  MdPlayArrow as PlayIcon,
+  MdPause as PauseIcon,
+  MdVolumeMute as MutedVolumeIcon,
+  MdVolumeDown as VolumeDownIcon,
+  MdVolumeUp as VolumeUpIcon
+} from "react-icons/md";
+import Ink from "react-ink";
 
 const mungeToPodcast = item => ({
   title: item.getElementsByTagName("title")[0].innerHTML,
@@ -189,43 +198,67 @@ function AudioPlayer({ url }) {
       });
     }
   }
+  const VolumeIcon =
+    state.volume === 0
+      ? MutedVolumeIcon
+      : state.volume <= 0.5
+        ? VolumeDownIcon
+        : VolumeUpIcon;
   return (
-    <>
+    <div
+      style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+    >
+      {state.duration ? (
+        <MultiProgress
+          spans={spans}
+          annotations={[state.currentTime]}
+          onClick={seek}
+        />
+      ) : (
+        <MultiProgress
+          spans={[{ color: "gray", length: 1 }]}
+          annotations={[0]}
+          onClick={seek}
+        />
+      )}
       <div
         style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
       >
+        <SkipBackward10Icon
+          size={40}
+          style={{ opacity: url ? undefined : 0.5 }}
+          onClick={() => seek(state.currentTime - 10)}
+        />
         <div style={{ paddingRight: 5 }}>
           {state.playing ? (
-            <PauseIcon onClick={() => setRequestPlaying(false)} />
+            <PauseIcon size={40} onClick={() => setRequestPlaying(false)} />
           ) : (
             <PlayIcon
+              size={40}
               style={{ opacity: url ? undefined : 0.5 }}
               onClick={() => setRequestPlaying(true)}
             />
           )}
         </div>
-        {state.duration ? (
-          <MultiProgress
-            spans={spans}
-            annotations={[state.currentTime]}
-            onClick={seek}
-          />
-        ) : (
-          <MultiProgress
-            spans={[{ color: "gray", length: 1 }]}
-            annotations={[0]}
-            onClick={seek}
-          />
-        )}
+        <SkipForward30Icon
+          size={40}
+          style={{ opacity: url ? undefined : 0.5 }}
+          onClick={() => seek(state.currentTime + 30)}
+        />
       </div>
-      <input
-        type="range"
-        value={state.volume * 20}
-        onChange={e => setVolume(e.target.value / 20)}
-        min={0}
-        max={20}
-      />
-    </>
+      <div
+        style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+      >
+        <VolumeIcon onClick={() => setVolume(state.volume === 0 ? 0.3 : 0)} />
+        <input
+          type="range"
+          value={state.volume * 20}
+          onChange={e => setVolume(e.target.value / 20)}
+          min={0}
+          max={20}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -257,11 +290,19 @@ class ErrorBoundary extends React.Component {
 
 function Cast({ cast, onPlay }) {
   return (
-    <>
-      <div key={cast.title} onClick={onPlay}>
-        {cast.title}
-      </div>
-    </>
+    <div
+      style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+    >
+      <button
+        key={cast.title}
+        style={{ display: "block", position: "relative", padding: 10 }}
+        onClick={onPlay}
+      >
+        <PlayIcon />
+        <Ink />
+      </button>
+      {cast.title}
+    </div>
   );
 }
 
@@ -286,8 +327,9 @@ function App() {
     <ErrorBoundary>
       <div
         style={{
-          backgroundColor: "white",
+          backgroundColor: "#0099ff",
           position: "fixed",
+          zIndex: 10,
           bottom: 0,
           right: 0,
           left: 0
