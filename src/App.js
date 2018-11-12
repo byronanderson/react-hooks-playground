@@ -195,7 +195,11 @@ function AudioPlayer({ url }) {
           pause
         </button>
       ) : (
-        <button type="button" onClick={() => setRequestPlaying(true)}>
+        <button
+          disabled={!url}
+          type="button"
+          onClick={() => setRequestPlaying(true)}
+        >
           play
         </button>
       )}
@@ -278,7 +282,7 @@ function App() {
   const [cast, setCast] = useState(null);
   return (
     <ErrorBoundary>
-      {cast ? <AudioPlayer key={cast} url={cast.url} /> : null}
+      {cast ? <AudioPlayer key={cast.url} url={cast.url} /> : <AudioPlayer />}
       <Suspense fallback="loading...">
         <Podcast url={Serial} onPlay={setCast} />
       </Suspense>
