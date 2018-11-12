@@ -11,10 +11,14 @@ import {
 } from "react-icons/md";
 import Ink from "react-ink";
 
-const mungeToPodcast = item => ({
-  title: item.getElementsByTagName("title")[0].innerHTML,
-  url: item.getElementsByTagName("enclosure")[0].attributes.url.nodeValue
-});
+const mungeToPodcast = item => {
+  const enclosure = item.getElementsByTagName("enclosure")[0];
+  if (!enclosure) return null;
+  return {
+    title: item.getElementsByTagName("title")[0].innerHTML,
+    url: enclosure.attributes.url.nodeValue
+  };
+};
 const PodcastResource = createResource(url =>
   fetch(`https://cors.io/?${url}`)
     .then(resp => resp.text())
@@ -25,7 +29,9 @@ const PodcastResource = createResource(url =>
         return Array.prototype.slice.call(nodelist);
       }
       return {
-        casts: toArray(xmlDoc.getElementsByTagName("item")).map(mungeToPodcast)
+        casts: toArray(xmlDoc.getElementsByTagName("item"))
+          .map(mungeToPodcast)
+          .filter(x => x)
       };
     })
 );
@@ -179,7 +185,7 @@ function MultiProgress({ spans, annotations, onClick }) {
 }
 
 function AudioPlayer({ url }) {
-  let [requestPlaying, setRequestPlaying] = useState(false);
+  let [requestPlaying, setRequestPlaying] = useState(true);
   let { state, seek, setVolume } = useAudio({ url, requestPlaying });
   let spans = [];
   if (state.bufferedSegments) {
@@ -204,6 +210,7 @@ function AudioPlayer({ url }) {
       : state.volume <= 0.5
         ? VolumeDownIcon
         : VolumeUpIcon;
+
   return (
     <div
       style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
@@ -224,32 +231,46 @@ function AudioPlayer({ url }) {
       <div
         style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
       >
-        <SkipBackward10Icon
-          size={40}
-          style={{ opacity: url ? undefined : 0.5 }}
+        <div
+          style={{ position: "relative" }}
           onClick={() => seek(state.currentTime - 10)}
-        />
-        <div style={{ paddingRight: 5 }}>
+        >
+          <Ink />
+          <SkipBackward10Icon
+            size={40}
+            style={{ opacity: url ? undefined : 0.5 }}
+          />
+        </div>
+        <div
+          style={{ position: "relative", paddingRight: 5 }}
+          onClick={() => setRequestPlaying(!state.playing)}
+        >
+          <Ink />
           {state.playing ? (
-            <PauseIcon size={40} onClick={() => setRequestPlaying(false)} />
+            <PauseIcon size={40} />
           ) : (
-            <PlayIcon
-              size={40}
-              style={{ opacity: url ? undefined : 0.5 }}
-              onClick={() => setRequestPlaying(true)}
-            />
+            <PlayIcon size={40} style={{ opacity: url ? undefined : 0.5 }} />
           )}
         </div>
-        <SkipForward30Icon
-          size={40}
-          style={{ opacity: url ? undefined : 0.5 }}
+        <div
+          style={{ position: "relative" }}
           onClick={() => seek(state.currentTime + 30)}
-        />
+        >
+          <Ink />
+          <SkipForward30Icon
+            size={40}
+            style={{ opacity: url ? undefined : 0.5 }}
+          />
+        </div>
       </div>
       <div
         style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
       >
-        <VolumeIcon onClick={() => setVolume(state.volume === 0 ? 0.3 : 0)} />
+        <VolumeIcon
+          style={{ width: 40 }}
+          size={30}
+          onClick={() => setVolume(state.volume === 0 ? 0.3 : 0)}
+        />
         <input
           type="range"
           value={state.volume * 20}
@@ -295,7 +316,13 @@ function Cast({ cast, onPlay }) {
     >
       <button
         key={cast.title}
-        style={{ display: "block", position: "relative", padding: 10 }}
+        style={{
+          display: "block",
+          position: "relative",
+          padding: 10,
+          marginRight: 10
+        }}
+        tabIndex={-1}
         onClick={onPlay}
       >
         <PlayIcon />
@@ -317,12 +344,55 @@ function Podcast({ url, onPlay }) {
   );
 }
 
-const IdleThumbs = "https://www.idlethumbs.net/feeds/idle-thumbs";
-const ThisAmericanLife = "http://feed.thisamericanlife.org/talpodcast";
-const Serial = "http://feeds.serialpodcast.org/serialpodcast";
+const ThisAmericanLife = {
+  name: "This American Life",
+  feedUrl: "http://feed.thisamericanlife.org/talpodcast"
+};
+const Serial = {
+  name: "Serial",
+  feedUrl: "http://feeds.serialpodcast.org/serialpodcast"
+};
+const Radiolab = {
+  name: "Radiolab",
+  feedUrl: "http://feeds.wnyc.org/radiolab"
+};
+const MorePerfect = {
+  name: "More Perfect by Radiolab",
+  feedUrl: "http://feeds.wnyc.org/moreperfect"
+};
+const IdleThumbs = {
+  name: "Idle Thumbs",
+  feedUrl: "https://www.idlethumbs.net/feeds/idle-thumbs"
+};
+const podcasts = [ThisAmericanLife, Serial, Radiolab, MorePerfect, IdleThumbs];
+
+function PodcastPicker({ onPick }) {
+  return podcasts.map(podcast => (
+    <div
+      key={podcast.feedUrl}
+      style={{ position: "relative", padding: 10, cursor: "pointer" }}
+      onClick={() => onPick(podcast)}
+    >
+      <Ink />
+      {podcast.name}
+    </div>
+  ));
+}
+
+function useDocumentTitle(title) {
+  useEffect(() => (document.title = title), [title]);
+}
 
 function App() {
   const [cast, setCast] = useState(null);
+  const [podcast, setPodcast] = useState(null);
+  useDocumentTitle(
+    cast
+      ? `Playing ${cast.name}`
+      : podcast
+        ? `Viewing ${podcast.name}`
+        : "Podcast Player"
+  );
   return (
     <ErrorBoundary>
       <div
@@ -338,7 +408,20 @@ function App() {
         <AudioPlayer url={cast ? cast.url : undefined} />
       </div>
       <Suspense fallback="loading...">
-        <Podcast url={Serial} onPlay={setCast} />
+        {podcast ? (
+          <>
+            <button
+              type="button"
+              style={{ margin: 10 }}
+              onClick={() => setPodcast(null)}
+            >
+              back
+            </button>
+            <Podcast url={podcast.feedUrl} onPlay={setCast} />
+          </>
+        ) : (
+          <PodcastPicker onPick={setPodcast} />
+        )}
       </Suspense>
       <div style={{ marginBottom: 80 }} />
     </ErrorBoundary>
