@@ -388,7 +388,7 @@ function App() {
   const [podcast, setPodcast] = useState(null);
   useDocumentTitle(
     cast
-      ? `Playing ${cast.name}`
+      ? `Playing ${cast.title}`
       : podcast
         ? `Viewing ${podcast.name}`
         : "Podcast Player"
