@@ -1,5 +1,6 @@
 import React, { Suspense, useState, useEffect } from "react";
 import { unstable_createResource as createResource } from "react-cache";
+import { MdPlayArrow as PlayIcon, MdPause as PauseIcon } from "react-icons/md";
 
 const mungeToPodcast = item => ({
   title: item.getElementsByTagName("title")[0].innerHTML,
@@ -190,32 +191,33 @@ function AudioPlayer({ url }) {
   }
   return (
     <>
-      {state.playing ? (
-        <button type="button" onClick={() => setRequestPlaying(false)}>
-          pause
-        </button>
-      ) : (
-        <button
-          disabled={!url}
-          type="button"
-          onClick={() => setRequestPlaying(true)}
-        >
-          play
-        </button>
-      )}
-      {state.duration ? (
-        <MultiProgress
-          spans={spans}
-          annotations={[state.currentTime]}
-          onClick={seek}
-        />
-      ) : (
-        <MultiProgress
-          spans={[{ color: "gray", length: 1 }]}
-          annotations={[0]}
-          onClick={seek}
-        />
-      )}
+      <div
+        style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+      >
+        <div style={{ paddingRight: 5 }}>
+          {state.playing ? (
+            <PauseIcon onClick={() => setRequestPlaying(false)} />
+          ) : (
+            <PlayIcon
+              style={{ opacity: url ? undefined : 0.5 }}
+              onClick={() => setRequestPlaying(true)}
+            />
+          )}
+        </div>
+        {state.duration ? (
+          <MultiProgress
+            spans={spans}
+            annotations={[state.currentTime]}
+            onClick={seek}
+          />
+        ) : (
+          <MultiProgress
+            spans={[{ color: "gray", length: 1 }]}
+            annotations={[0]}
+            onClick={seek}
+          />
+        )}
+      </div>
       <input
         type="range"
         value={state.volume * 20}
@@ -282,10 +284,21 @@ function App() {
   const [cast, setCast] = useState(null);
   return (
     <ErrorBoundary>
-      {cast ? <AudioPlayer key={cast.url} url={cast.url} /> : <AudioPlayer />}
+      <div
+        style={{
+          backgroundColor: "white",
+          position: "fixed",
+          bottom: 0,
+          right: 0,
+          left: 0
+        }}
+      >
+        <AudioPlayer url={cast ? cast.url : undefined} />
+      </div>
       <Suspense fallback="loading...">
         <Podcast url={Serial} onPlay={setCast} />
       </Suspense>
+      <div style={{ marginBottom: 80 }} />
     </ErrorBoundary>
   );
 }
