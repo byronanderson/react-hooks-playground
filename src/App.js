@@ -142,9 +142,9 @@ function MultiProgress({ spans, annotations, onClick }) {
           key={i}
           style={{
             position: "absolute",
-            left: adjust(annotation) - 2,
-            width: 4,
-            height: 5,
+            left: adjust(annotation) - 1,
+            width: 2,
+            height: 15,
             backgroundColor: "red"
           }}
         />
@@ -250,34 +250,37 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function Cast({ cast }) {
-  const [open, setOpen] = useState(false);
+function Cast({ cast, onPlay }) {
   return (
     <>
-      <div key={cast.title} onClick={() => setOpen(!open)}>
+      <div key={cast.title} onClick={onPlay}>
         {cast.title}
       </div>
-      {open ? <AudioPlayer url={cast.url} /> : null}
     </>
   );
 }
 
-function Podcast({ url }) {
+function Podcast({ url, onPlay }) {
   const podcast = PodcastResource.read(url);
   return (
     <>
       {podcast.casts.map(cast => (
-        <Cast key={cast.title} cast={cast} />
+        <Cast key={cast.title} cast={cast} onPlay={() => onPlay(cast)} />
       ))}
     </>
   );
 }
 
+const IdleThumbs = "https://www.idlethumbs.net/feeds/idle-thumbs";
+const ThisAmericanLife = "http://feed.thisamericanlife.org/talpodcast";
+
 function App() {
+  const [cast, setCast] = useState(null);
   return (
     <ErrorBoundary>
+      {cast ? <AudioPlayer key={cast} url={cast.url} /> : null}
       <Suspense fallback="loading...">
-        <Podcast url="https://www.idlethumbs.net/feeds/idle-thumbs" />
+        <Podcast url={ThisAmericanLife} onPlay={setCast} />
       </Suspense>
     </ErrorBoundary>
   );
