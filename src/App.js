@@ -3,7 +3,7 @@ import { unstable_createResource as createResource } from "react-cache";
 
 const mungeToPodcast = item => ({
   title: item.getElementsByTagName("title")[0].innerHTML,
-  url: item.getElementsByTagName("media:content")[0].attributes.url.nodeValue
+  url: item.getElementsByTagName("enclosure")[0].attributes.url.nodeValue
 });
 const PodcastResource = createResource(url =>
   fetch(`https://cors.io/?${url}`)
@@ -18,7 +18,6 @@ const PodcastResource = createResource(url =>
         casts: toArray(xmlDoc.getElementsByTagName("item")).map(mungeToPodcast)
       };
     })
-    .catch(console.error.bind(console))
 );
 
 function mungeBuffered(buffered) {
@@ -273,6 +272,7 @@ function Podcast({ url, onPlay }) {
 
 const IdleThumbs = "https://www.idlethumbs.net/feeds/idle-thumbs";
 const ThisAmericanLife = "http://feed.thisamericanlife.org/talpodcast";
+const Serial = "http://feeds.serialpodcast.org/serialpodcast";
 
 function App() {
   const [cast, setCast] = useState(null);
@@ -280,7 +280,7 @@ function App() {
     <ErrorBoundary>
       {cast ? <AudioPlayer key={cast} url={cast.url} /> : null}
       <Suspense fallback="loading...">
-        <Podcast url={ThisAmericanLife} onPlay={setCast} />
+        <Podcast url={Serial} onPlay={setCast} />
       </Suspense>
     </ErrorBoundary>
   );
