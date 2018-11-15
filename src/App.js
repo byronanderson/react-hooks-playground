@@ -11,6 +11,7 @@ import {
 } from "react-icons/md";
 import Ink from "react-ink";
 import { Router, Link, Redirect } from "@reach/router";
+import stopwords from "./stopwords";
 
 const ThisAmericanLife = {
   slug: "tal",
@@ -37,9 +38,15 @@ const IdleThumbs = {
   name: "Idle Thumbs",
   feedUrl: "https://www.idlethumbs.net/feeds/idle-thumbs"
 };
-const podcasts = [ThisAmericanLife, Serial, Radiolab, MorePerfect, IdleThumbs];
+const defaultPodcasts = [
+  ThisAmericanLife,
+  Serial,
+  Radiolab,
+  MorePerfect,
+  IdleThumbs
+];
 
-const mungeToPodcast = item => {
+const mungeToCast = item => {
   const enclosure = item.getElementsByTagName("enclosure")[0];
   if (!enclosure) return null;
   return {
@@ -47,22 +54,38 @@ const mungeToPodcast = item => {
     url: enclosure.attributes.url.nodeValue
   };
 };
-const PodcastResource = createResource(url =>
+
+function generateSlug(name) {
+  return name
+    .toLowerCase()
+    .split(" ")
+    .filter(el => !stopwords.includes(el))
+    .join("");
+}
+
+const mungeToPodcast = (feedUrl, text) => {
+  let parser = new DOMParser();
+  let xmlDoc = parser.parseFromString(text, "text/xml");
+  function toArray(nodelist) {
+    return Array.prototype.slice.call(nodelist);
+  }
+  const name = xmlDoc.querySelector("channel title").innerHTML;
+  return {
+    name,
+    slug: generateSlug(name),
+    feedUrl,
+    casts: toArray(xmlDoc.getElementsByTagName("item"))
+      .map(mungeToCast)
+      .filter(x => x)
+  };
+};
+
+const fetchPodcast = url =>
   fetch(`https://cors.io/?${url}`)
     .then(resp => resp.text())
-    .then(text => {
-      let parser = new DOMParser();
-      let xmlDoc = parser.parseFromString(text, "text/xml");
-      function toArray(nodelist) {
-        return Array.prototype.slice.call(nodelist);
-      }
-      return {
-        casts: toArray(xmlDoc.getElementsByTagName("item"))
-          .map(mungeToPodcast)
-          .filter(x => x)
-      };
-    })
-);
+    .then(text => mungeToPodcast(url, text));
+
+const PodcastResource = createResource(fetchPodcast);
 
 function mungeBuffered(buffered) {
   let retVal = [];
@@ -396,7 +419,7 @@ function Cast({ cast, playing, onPlay, onPause }) {
   );
 }
 
-function Podcast({ slug, playingUrl, onPlay, onPause }) {
+function Podcast({ podcasts, slug, playingUrl, onPlay, onPause }) {
   const podcast = podcasts.filter(podcast => podcast.slug === slug)[0];
   if (!podcast) {
     return <Redirect to="/" />;
@@ -418,27 +441,66 @@ function Podcast({ slug, playingUrl, onPlay, onPause }) {
   );
 }
 
-function PodcastPicker() {
-  return podcasts.map(podcast => (
-    <Link
-      key={podcast.feedUrl}
-      style={{ position: "relative" }}
-      to={`/${podcast.slug}`}
-    >
-      <div style={{ padding: 10 }}>
-        <Ink />
-        {podcast.name}
-      </div>
-    </Link>
-  ));
+function PodcastPicker({ podcasts, onAddPodcast }) {
+  const [rssDraftValue, setRssDraftValue] = useState("");
+  function submit(e) {
+    e.preventDefault();
+    fetchPodcast(rssDraftValue).then(({ name, slug, feedUrl }) =>
+      onAddPodcast({ name, slug, feedUrl })
+    );
+    setRssDraftValue("");
+  }
+  return (
+    <>
+      <form onSubmit={submit}>
+        <input
+          placeholder="Put RSS URL here"
+          value={rssDraftValue}
+          onChange={e => setRssDraftValue(e.target.value)}
+        />
+        <button type="submit">Add</button>
+      </form>
+      {podcasts.map(podcast => (
+        <Link
+          key={podcast.feedUrl}
+          style={{ position: "relative" }}
+          to={`/${podcast.slug}`}
+        >
+          <div style={{ padding: 10 }}>
+            <Ink />
+            {podcast.name}
+          </div>
+        </Link>
+      ))}
+    </>
+  );
 }
 
 function useDocumentTitle(title) {
-  useEffect(() => (document.title = title), [title]);
+  useEffect(
+    () => {
+      document.title = title;
+    },
+    [title]
+  );
+}
+
+function useLocalState(defaultValue, key) {
+  const data = localStorage.getItem(key);
+  const hydrated = data ? JSON.parse(data) : undefined;
+  const [state, setState] = useState(hydrated || defaultValue);
+  return [
+    state,
+    function(data) {
+      localStorage.setItem(key, JSON.stringify(data));
+      setState(data);
+    }
+  ];
 }
 
 function App() {
   const [cast, setCast] = useState(null);
+  const [podcasts, setPodcasts] = useLocalState(defaultPodcasts, "podcasts");
   useDocumentTitle(cast ? `Playing ${cast.title}` : "Podcast Player");
 
   let { url, state, seek, setVolume, setRequestPlaying } = useAudio(
@@ -449,9 +511,14 @@ function App() {
     <ErrorBoundary>
       <Suspense fallback="loading...">
         <Router>
-          <PodcastPicker path="/" />
+          <PodcastPicker
+            path="/"
+            podcasts={podcasts}
+            onAddPodcast={podcast => setPodcasts([...podcasts, podcast])}
+          />
           <Podcast
             path=":slug"
+            podcasts={podcasts}
             playingUrl={cast && state.requestPlaying ? cast.url : undefined}
             onPlay={cast => {
               setCast(cast);
