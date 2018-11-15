@@ -419,11 +419,15 @@ function Cast({ cast, playing, onPlay, onPause }) {
   );
 }
 
-function Podcast({ podcasts, slug, playingUrl, onPlay, onPause }) {
+function PodcastPath({ podcasts, slug, ...rest }) {
   const podcast = podcasts.filter(podcast => podcast.slug === slug)[0];
   if (!podcast) {
     return <Redirect to="/" />;
   }
+  return <Podcast podcast={podcast} {...rest} />;
+}
+
+function Podcast({ podcast, playingUrl, onPlay, onPause }) {
   const resource = PodcastResource.read(podcast.feedUrl);
   return (
     <>
@@ -469,6 +473,9 @@ function PodcastPicker({ podcasts, onAddPodcast }) {
           <div style={{ padding: 10 }}>
             <Ink />
             {podcast.name}
+          </div>
+          <div hidden>
+            <Podcast podcast={podcast} />
           </div>
         </Link>
       ))}
@@ -516,7 +523,7 @@ function App() {
             podcasts={podcasts}
             onAddPodcast={podcast => setPodcasts([...podcasts, podcast])}
           />
-          <Podcast
+          <PodcastPath
             path=":slug"
             podcasts={podcasts}
             playingUrl={cast && state.requestPlaying ? cast.url : undefined}
