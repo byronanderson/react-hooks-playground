@@ -276,16 +276,6 @@ function AudioPlayerControls({
         : VolumeUpIcon;
 
   const disabled = !url;
-  const smallScale = 0.8;
-  const [animatedProps, setAnimatedProps] = useSpring({
-    // Array containing [rotateX, rotateY, and scale] values.
-    // We store under a single key (xys) instead of separate keys ...
-    // ... so that we can use animatedProps.xys.interpolate() to ...
-    // ... easily generate the css transform value below.
-    scale: smallScale,
-    // Setup physics
-    config: { mass: 10, tension: 600, friction: 40, precision: 0.00001 }
-  });
 
   return (
     <div
@@ -320,32 +310,24 @@ function AudioPlayerControls({
             style={{ opacity: disabled ? 0.5 : undefined }}
           />
         </button>
-        <animated.div
-          style={{
-            transform: animatedProps.scale.interpolate(x => `scale(${x})`)
-          }}
-          onMouseOver={e => setAnimatedProps({ scale: 1 })}
-          onMouseOut={e => setAnimatedProps({ scale: smallScale })}
+        <button
+          type="button"
+          aria-label="play"
+          aria-pressed={!!state.playing}
+          style={{ position: "relative", paddingRight: 5 }}
+          disabled={disabled}
+          onClick={state.playing ? onPause : onPlay}
         >
-          <button
-            type="button"
-            aria-label="play"
-            aria-pressed={!!state.playing}
-            style={{ position: "relative", paddingRight: 5 }}
-            disabled={disabled}
-            onClick={state.playing ? onPause : onPlay}
-          >
-            <Ink />
-            {state.playing ? (
-              <PauseIcon size={40} />
-            ) : (
-              <PlayIcon
-                size={40}
-                style={{ opacity: disabled ? 0.5 : undefined }}
-              />
-            )}
-          </button>
-        </animated.div>
+          <Ink />
+          {state.playing ? (
+            <PauseIcon size={40} />
+          ) : (
+            <PlayIcon
+              size={40}
+              style={{ opacity: disabled ? 0.5 : undefined }}
+            />
+          )}
+        </button>
         <button
           style={{ position: "relative" }}
           aria-label="skip forward 30 seconds"
@@ -410,7 +392,8 @@ class ErrorBoundary extends React.Component {
 }
 
 function Cast({ cast, playing, onPlay, onPause }) {
-  return (
+  //react-spring.surge.sh/spring#interpolation
+  http: return (
     <div
       style={{
         padding: 5,
@@ -485,19 +468,17 @@ function PodcastPicker({ podcasts, onAddPodcast }) {
         <button type="submit">Add</button>
       </form>
       {podcasts.map(podcast => (
-        <Link
-          key={podcast.feedUrl}
-          style={{ position: "relative" }}
-          to={`/${podcast.slug}`}
-        >
-          <div style={{ padding: 10 }}>
-            <Ink />
-            {podcast.name}
-          </div>
+        <React.Fragment key={podcast.feedUrl}>
+          <Link style={{ position: "relative" }} to={`/${podcast.slug}`}>
+            <div style={{ padding: 10 }}>
+              <Ink />
+              {podcast.name}
+            </div>
+          </Link>
           <div hidden>
             <Podcast podcast={podcast} />
           </div>
-        </Link>
+        </React.Fragment>
       ))}
     </>
   );
@@ -527,12 +508,18 @@ function useLocalState(defaultValue, key) {
 
 function App() {
   const [cast, setCast] = useState(null);
+  const [hover, setHover] = useState(false);
   const [podcasts, setPodcasts] = useLocalState(defaultPodcasts, "podcasts");
   useDocumentTitle(cast ? `Playing ${cast.title}` : "Podcast Player");
 
   let { url, state, seek, setVolume, setRequestPlaying } = useAudio(
     cast ? cast.url : undefined
   );
+
+  const [animatedProps] = useSpring({
+    scale: hover ? 1 : 0.8,
+    config: { mass: 10, tension: 600, friction: 40, precision: 0.00001 }
+  });
 
   return (
     <ErrorBoundary>
@@ -556,6 +543,16 @@ function App() {
         </Router>
       </Suspense>
       <div style={{ marginBottom: 80 }} />
+      <animated.div
+        style={{
+          backgroundColor: "red",
+          width: 100,
+          height: 100,
+          transform: animatedProps.scale.interpolate(x => `scale(${x})`)
+        }}
+        onMouseOver={e => setHover(true)}
+        onMouseOut={e => setHover(false)}
+      />
       <div
         style={{
           backgroundColor: "#d65e7e",
