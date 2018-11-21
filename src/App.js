@@ -12,6 +12,7 @@ import {
 import Ink from "react-ink";
 import { Router, Link, Redirect } from "@reach/router";
 import stopwords from "./stopwords";
+import { useSpring, animated } from "react-spring";
 
 const ThisAmericanLife = {
   slug: "tal",
@@ -275,6 +276,17 @@ function AudioPlayerControls({
         : VolumeUpIcon;
 
   const disabled = !url;
+  const smallScale = 0.8;
+  const [animatedProps, setAnimatedProps] = useSpring({
+    // Array containing [rotateX, rotateY, and scale] values.
+    // We store under a single key (xys) instead of separate keys ...
+    // ... so that we can use animatedProps.xys.interpolate() to ...
+    // ... easily generate the css transform value below.
+    scale: smallScale,
+    // Setup physics
+    config: { mass: 10, tension: 600, friction: 40, precision: 0.00001 }
+  });
+
   return (
     <div
       style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
@@ -308,24 +320,32 @@ function AudioPlayerControls({
             style={{ opacity: disabled ? 0.5 : undefined }}
           />
         </button>
-        <button
-          type="button"
-          aria-label="play"
-          aria-pressed={!!state.playing}
-          style={{ position: "relative", paddingRight: 5 }}
-          disabled={disabled}
-          onClick={state.playing ? onPause : onPlay}
+        <animated.div
+          style={{
+            transform: animatedProps.scale.interpolate(x => `scale(${x})`)
+          }}
+          onMouseOver={e => setAnimatedProps({ scale: 1 })}
+          onMouseOut={e => setAnimatedProps({ scale: smallScale })}
         >
-          <Ink />
-          {state.playing ? (
-            <PauseIcon size={40} />
-          ) : (
-            <PlayIcon
-              size={40}
-              style={{ opacity: disabled ? 0.5 : undefined }}
-            />
-          )}
-        </button>
+          <button
+            type="button"
+            aria-label="play"
+            aria-pressed={!!state.playing}
+            style={{ position: "relative", paddingRight: 5 }}
+            disabled={disabled}
+            onClick={state.playing ? onPause : onPlay}
+          >
+            <Ink />
+            {state.playing ? (
+              <PauseIcon size={40} />
+            ) : (
+              <PlayIcon
+                size={40}
+                style={{ opacity: disabled ? 0.5 : undefined }}
+              />
+            )}
+          </button>
+        </animated.div>
         <button
           style={{ position: "relative" }}
           aria-label="skip forward 30 seconds"
