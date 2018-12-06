@@ -1,5 +1,4 @@
 import React, { Suspense, useState, useEffect } from "react";
-import { unstable_createResource as createResource } from "react-cache";
 import {
   MdForward30 as SkipForward30Icon,
   MdReplay10 as SkipBackward10Icon,
@@ -13,6 +12,7 @@ import Ink from "react-ink";
 import { Router, Link, Redirect } from "@reach/router";
 import stopwords from "./stopwords";
 import { useSpring, animated } from "react-spring";
+import { unstable_createResource as createResource } from "react-cache";
 
 const ThisAmericanLife = {
   slug: "tal",
@@ -207,7 +207,7 @@ function MultiProgress({ spans, annotations, onClick }) {
     .map(span => span.length)
     .reduce((acc, size) => acc + size, 0);
   function adjust(position) {
-    return (position * 300) / total;
+    return position * 300 / total;
   }
   return (
     <div style={{ position: "relative", paddingTop: 5 }}>
@@ -228,7 +228,8 @@ function MultiProgress({ spans, annotations, onClick }) {
           key={i}
           onClick={e => {
             const location =
-              ((e.pageX - e.currentTarget.parentElement.offsetLeft) * total) /
+              (e.pageX - e.currentTarget.parentElement.offsetLeft) *
+              total /
               300;
             onClick(location);
           }}
@@ -271,9 +272,7 @@ function AudioPlayerControls({
   const VolumeIcon =
     state.volume === 0
       ? MutedVolumeIcon
-      : state.volume <= 0.5
-        ? VolumeDownIcon
-        : VolumeUpIcon;
+      : state.volume <= 0.5 ? VolumeDownIcon : VolumeUpIcon;
 
   const disabled = !url;
 
@@ -506,72 +505,36 @@ function useLocalState(defaultValue, key) {
   ];
 }
 
+const cache = {
+  read: function() {
+    if (this.data) {
+      return this.data;
+    } else {
+      this.promise =
+        this.promise ||
+        new Promise(resolve =>
+          setTimeout(() => {
+            this.data = "foo";
+            resolve();
+          }, 1000)
+        );
+      throw this.promise;
+    }
+    return this.data;
+  }
+};
+
+function Thing() {
+  const data = cache.read();
+  return data;
+}
+
 function App() {
-  const [cast, setCast] = useState(null);
-  const [hover, setHover] = useState(false);
-  const [podcasts, setPodcasts] = useLocalState(defaultPodcasts, "podcasts");
-  useDocumentTitle(cast ? `Playing ${cast.title}` : "Podcast Player");
-
-  let { url, state, seek, setVolume, setRequestPlaying } = useAudio(
-    cast ? cast.url : undefined
-  );
-
-  const [animatedProps] = useSpring({
-    scale: hover ? 1 : 0.8,
-    config: { mass: 10, tension: 600, friction: 40, precision: 0.00001 }
-  });
-
   return (
     <ErrorBoundary>
       <Suspense fallback="loading...">
-        <Router>
-          <PodcastPicker
-            path="/"
-            podcasts={podcasts}
-            onAddPodcast={podcast => setPodcasts([...podcasts, podcast])}
-          />
-          <PodcastPath
-            path=":slug"
-            podcasts={podcasts}
-            playingUrl={cast && state.requestPlaying ? cast.url : undefined}
-            onPlay={cast => {
-              setCast(cast);
-              setRequestPlaying(true);
-            }}
-            onPause={() => setRequestPlaying(false)}
-          />
-        </Router>
+        <Thing />
       </Suspense>
-      <div style={{ marginBottom: 80 }} />
-      <animated.div
-        style={{
-          backgroundColor: "red",
-          width: 100,
-          height: 100,
-          transform: animatedProps.scale.interpolate(x => `scale(${x})`)
-        }}
-        onMouseOver={e => setHover(true)}
-        onMouseOut={e => setHover(false)}
-      />
-      <div
-        style={{
-          backgroundColor: "#d65e7e",
-          position: "fixed",
-          zIndex: 10,
-          bottom: 0,
-          right: 0,
-          left: 0
-        }}
-      >
-        <AudioPlayerControls
-          url={url}
-          state={state}
-          onPlay={() => setRequestPlaying(true)}
-          onPause={() => setRequestPlaying(false)}
-          onSetVolume={setVolume}
-          onSeek={seek}
-        />
-      </div>
     </ErrorBoundary>
   );
 }
